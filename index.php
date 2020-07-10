@@ -281,12 +281,12 @@ class FS_Bot
         echo <<<HTML
 <div class="menu">
 <b>@fwdmebot <sup>v{$v}</sup></b> | 
-<a href="index.php?action=admin&param=settings">Settings</a> | 
-<a href="index.php?action=admin&param=name">Name</a> | 
-<a href="index.php?action=admin&param=token">Token</a> | 
-<a href="index.php?action=admin&param=webhook">Webhook</a> | 
-<a href="index.php?action=admin&param=start">Start</a> | 
-<a href="index.php?action=admin&param=rcp">Recipients</a>
+<a href="index.php?action=admin&param=setup_settings">Settings</a> | 
+<a href="index.php?action=admin&param=setup_name">Name</a> | 
+<a href="index.php?action=admin&param=setup_token">Token</a> | 
+<a href="index.php?action=admin&param=setup_webhook">Webhook</a> | 
+<a href="index.php?action=admin&param=setup_start">Start</a> | 
+<a href="index.php?action=admin&param=setup_rcp">Recipients</a> 
 </div>
 HTML;
         if ($responce != '') {
