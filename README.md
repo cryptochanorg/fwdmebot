@@ -2,7 +2,14 @@
 
 Talk with anyone via your own Telegram bot. 
 
-1. Put the script somewhere in the site directory, for example https://mysite.com/bot/index.php
+One simple PHP script.
+For centralized users support.
+Website with SSL required.
+
+Setup
+
+0. Create new bot with @BotFather in Telegram
+1. Put index.php somewhere in your site directory, for example https://mysite.com/bot/index.php
 2. Go to https://mysite.com/bot/index.php?action=admin and follow installation steps
 3. Create writeable(!) .json file with random name in script directory
 4. Create administrator login and password
