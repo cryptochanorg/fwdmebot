@@ -1,6 +1,7 @@
 # fwdmebot
 
-Talk with anyone via your own Telegram bot. 
+Bot will forward all messages from users to selected Telegram IDs.
+Replay to forwarded messages, talk with users from bot name, without displaying your contact.
 
 One simple PHP script.
 For centralized users support.
