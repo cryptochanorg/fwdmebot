@@ -6,15 +6,15 @@
 
 class FS_Bot
 {
-	const VERSION = '0.1.0';
-    const API_URL = 'https://api.telegram.org/bot';    
-	const SLEEP_TIME = 1;
+    const VERSION = '0.1.0';
+    const API_URL = 'https://api.telegram.org/bot';
+    const SLEEP_TIME = 1;
 
     private static $instance;
     private $settings;
-	private $settings_file;
-    
-	public static function get_instance()
+    private $settings_file;
+
+    public static function get_instance()
     {
         if (!isset(self::$instance)) {
             $c = __CLASS__;
@@ -35,15 +35,15 @@ class FS_Bot
 
     function settings()
     {
-		$config = glob('*.json');				
+        $config = glob('*.json');
         if (isset($config[0]) && file_exists($config[0])) {
-			$this->settings_file = $config[0];
-            $this->settings = json_decode(file_get_contents($this->settings_file), true);			
+            $this->settings_file = $config[0];
+            $this->settings = json_decode(file_get_contents($this->settings_file), true);
         }
     }
 
     function requests()
-    {        
+    {
         if (isset($this->settings['webhook'])) {
             $uri = parse_url($this->settings['webhook']);
             if (isset($_SERVER['REQUEST_URI']) && $_SERVER['REQUEST_URI'] == $uri['path'] . "?" . $uri['query']) {
@@ -53,56 +53,57 @@ class FS_Bot
                 $this->logger(var_export($update, true));
 
                 if (isset($update["message"])) {
-                    $this->process_message( $update["message"] );
-                }                
+                    $this->process_message($update["message"]);
+                }
             }
         }
     }
 
     function admin_requests()
     {
-		
-		if (isset($this->settings['login']) && isset($_POST['login']) && isset($_POST['password'])) {
-			return $this->authorization($_POST['login'], $_POST['password']);
-		}
 
-		if (isset($_POST['login']) && isset($_POST['password']) && isset($_POST['cpassword'])) 
-			return $this->save_authorization($_POST['login'], $_POST['password'], $_POST['cpassword']);
+        if (isset($this->settings['login']) && isset($_POST['login']) && isset($_POST['password'])) {
+            return $this->authorization($_POST['login'], $_POST['password']);
+        }
 
-		if(!isset($_SESSION['auth']) || $_SESSION['auth'] != true) return;
+        if (isset($_POST['login']) && isset($_POST['password']) && isset($_POST['cpassword']))
+            return $this->save_authorization($_POST['login'], $_POST['password'], $_POST['cpassword']);
 
-		if (isset($_POST['name'])) 
-			return $this->save_name($_POST['name']);
-        if (isset($_POST['token'])) 
-			return $this->save_token($_POST['token']);
-        if (isset($_POST['webhook'])) 
-			return $this->save_webhook($_POST['webhook']);
-		if (isset($_POST['start_msg'])) 
-			return $this->save_start_msg($_POST['start_msg']);
-		if (isset($_POST['rcp'])) 
-			return $this->save_recipients($_POST['rcp']);
+        if (!isset($_SESSION['auth']) || $_SESSION['auth'] != true) return;
+
+        if (isset($_POST['name']))
+            return $this->save_name($_POST['name']);
+        if (isset($_POST['token']))
+            return $this->save_token($_POST['token']);
+        if (isset($_POST['webhook']))
+            return $this->save_webhook($_POST['webhook']);
+        if (isset($_POST['start_msg']))
+            return $this->save_start_msg($_POST['start_msg']);
+        if (isset($_POST['rcp']))
+            return $this->save_recipients($_POST['rcp']);
     }
 
-	function authorization($login, $password) {
-		if($this->settings['login'] == $login && $this->settings['pass'] == md5(md5($password))) $_SESSION['auth'] = true;	
-	}
+    function authorization($login, $password)
+    {
+        if ($this->settings['login'] == $login && $this->settings['pass'] == md5(md5($password))) $_SESSION['auth'] = true;
+    }
 
-	function save_authorization($login, $password, $cpassword) 
-	{
-		$login = filter_var($login, FILTER_SANITIZE_STRING);
-		$password = filter_var($password, FILTER_SANITIZE_STRING);
-		$cpassword = filter_var($cpassword, FILTER_SANITIZE_STRING);
+    function save_authorization($login, $password, $cpassword)
+    {
+        $login = filter_var($login, FILTER_SANITIZE_STRING);
+        $password = filter_var($password, FILTER_SANITIZE_STRING);
+        $cpassword = filter_var($cpassword, FILTER_SANITIZE_STRING);
 
-		if($login == '') return 'Error, empty login.';
-		if($password == '') return 'Error, empty password.';
-		if($password != $cpassword) return 'Error, wrong password confirmation.';
+        if ($login == '') return 'Error, empty login.';
+        if ($password == '') return 'Error, empty password.';
+        if ($password != $cpassword) return 'Error, wrong password confirmation.';
 
-		if(!isset($this->settings['login']) && !isset($this->settings['pass'])) {
-			$this->settings['login'] = $login;
-			$this->settings['pass'] = md5(md5($password));
-			$this->save_settings();
-		} else return 'Error, not allowed already exist';
-	}
+        if (!isset($this->settings['login']) && !isset($this->settings['pass'])) {
+            $this->settings['login'] = $login;
+            $this->settings['pass'] = md5(md5($password));
+            $this->save_settings();
+        } else return 'Error, not allowed already exist';
+    }
 
     function save_name($name)
     {
@@ -116,16 +117,16 @@ class FS_Bot
         $this->save_settings();
     }
 
-	function save_start_msg($msg)
+    function save_start_msg($msg)
     {
-		// @todo sanitize $msg
+        // @todo sanitize $msg
         $this->settings['start_msg'] = $msg;
         $this->save_settings();
     }
 
     function save_webhook($url)
     {
-		// @todo sanitize $url
+        // @todo sanitize $url
         $result = $this->send_post('setWebHook', ['url' => $url]);
         if (!empty($result)) {
             $result = json_decode($result, true);
@@ -142,10 +143,11 @@ class FS_Bot
         //echo var_export($this->send_post( 'getwebhookinfo' ), true);
     }
 
-	function save_recipients($recipients) {
-		$this->settings['rcp'] = array_map('trim', explode(PHP_EOL, $recipients));
+    function save_recipients($recipients)
+    {
+        $this->settings['rcp'] = array_map('trim', explode(PHP_EOL, $recipients));
         $this->save_settings();
-	}
+    }
 
     function save_settings()
     {
@@ -154,89 +156,89 @@ class FS_Bot
 
 
     function admin()
-    {		
+    {
         if (!isset($_GET['action']) || $_GET['action'] != 'admin') return;
-		
-		session_start();
-		
-		$responce = $this->admin_requests();
-		
-		if(isset($this->settings['login'])) {
-			$auth = isset($_SESSION['auth']) && $_SESSION['auth'] == true ? true : false;
-			if(!$auth) { 
-				$this->login();
-				exit();
-			}
-		}		
-		
-		$param = isset($_GET['param']) ? $_GET['param'] : '';
 
-		// setup 
-		if($this->settings_file == '') $param = 'setup_settings';
-		elseif (!isset($this->settings['login'])) $param = 'setup_auth';
-		elseif (!isset($this->settings['name'])) $param = 'setup_name';
+        session_start();
+
+        $responce = $this->admin_requests();
+
+        if (isset($this->settings['login'])) {
+            $auth = isset($_SESSION['auth']) && $_SESSION['auth'] == true ? true : false;
+            if (!$auth) {
+                $this->login();
+                exit();
+            }
+        }
+
+        $param = isset($_GET['param']) ? $_GET['param'] : '';
+
+        // setup 
+        if ($this->settings_file == '') $param = 'setup_settings';
+        elseif (!isset($this->settings['login'])) $param = 'setup_auth';
+        elseif (!isset($this->settings['name'])) $param = 'setup_name';
         elseif (!isset($this->settings['token'])) $param = 'setup_token';
         elseif (!isset($this->settings['webhook'])) $param = 'setup_webhook';
-		elseif (!isset($this->settings['start_msg'])) $param = 'setup_start';
-		elseif (!isset($this->settings['rcp'])) $param = 'setup_rcp';		
+        elseif (!isset($this->settings['start_msg'])) $param = 'setup_start';
+        elseif (!isset($this->settings['rcp'])) $param = 'setup_rcp';
 
         $this->admin_header();
-		$this->panel($responce);
-		
-		if(method_exists($this, $param)) $this->{$param}();
-		
+        $this->panel($responce);
+
+        if (method_exists($this, $param)) $this->{$param}();
+
         $this->admin_footer();
     }
 
-	function process_message( $message ) 
-	{
-		// process incoming message
-		if ( isset( $message ) ) {
-			$text = isset($message['text']) ? $message['text'] : '';
-			if ( $text === "/start" || $text === "/start" . $this->settings['name'] ) {
-				$this->start( $message );
-			} elseif ( $text === "/id" || $text === "/id" . $this->settings['name'] ) {
-				$this->get_id($message);
-			} else {				
-				if(!in_array($message['from']['id'], $this->settings['rcp'])) $this->interference_message($message);
-				if(in_array($message['from']['id'], $this->settings['rcp']) && isset($message['reply_to_message']) ) $this->replay_message($message);
-			}
-		}
-	}
+    function process_message($message)
+    {
+        // process incoming message
+        if (isset($message)) {
+            $text = isset($message['text']) ? $message['text'] : '';
+            if ($text === "/start" || $text === "/start" . $this->settings['name']) {
+                $this->start($message);
+            } elseif ($text === "/id" || $text === "/id" . $this->settings['name']) {
+                $this->get_id($message);
+            } else {
+                if (!in_array($message['from']['id'], $this->settings['rcp'])) $this->interference_message($message);
+                if (in_array($message['from']['id'], $this->settings['rcp']) && isset($message['reply_to_message'])) $this->replay_message($message);
+            }
+        }
+    }
 
-	function get_id($message) 
-	{
-		$this->send_post( "sendMessage", [ 'chat_id' => $message['chat']['id'], 'text' => 'Your Telegram ID: <code>' . $message['from']['id'] . '</code>', 'parse_mode'   => 'HTML' ]  );
-	}
+    function get_id($message)
+    {
+        $this->send_post("sendMessage", ['chat_id' => $message['chat']['id'], 'text' => 'Your Telegram ID: <code>' . $message['from']['id'] . '</code>', 'parse_mode'   => 'HTML']);
+    }
 
-	function interference_message($message) 
-	{
-		if(!empty($this->settings['rcp'])) {
-			foreach($this->settings['rcp'] as $rcp) {				
-				$this->logger(var_export([ 'chat_id' => (int) $rcp, 'from_chat_id' => $message['chat']['id'], 'message_id' => $message['message_id'] ] , true));
-				$this->send_post( "forwardMessage", [ 'chat_id' => (int) $rcp, 'from_chat_id' => $message['chat']['id'], 'message_id' => $message['message_id'] ] );
-				sleep(self::SLEEP_TIME);
-			}
-		}
-	}
+    function interference_message($message)
+    {
+        if (!empty($this->settings['rcp'])) {
+            foreach ($this->settings['rcp'] as $rcp) {
+                $this->logger(var_export(['chat_id' => (int) $rcp, 'from_chat_id' => $message['chat']['id'], 'message_id' => $message['message_id']], true));
+                $this->send_post("forwardMessage", ['chat_id' => (int) $rcp, 'from_chat_id' => $message['chat']['id'], 'message_id' => $message['message_id']]);
+                sleep(self::SLEEP_TIME);
+            }
+        }
+    }
 
-	function replay_message($message) 
-	{
-		if(isset($message['photo'])) {
-			$this->send_post( "sendPhoto", [ 'chat_id' => $message['reply_to_message']['forward_from']['id'], 'photo' => $message['photo'][0]['file_id'], 'caption' => $message['caption'] ] );
-		} elseif(isset($message['text'])) {
-			$this->send_post( "sendMessage", [ 'chat_id' => $message['reply_to_message']['forward_from']['id'], 'text' => $message['text'] ] );
-		} else {
-			$this->send_post( "sendMessage", [ 'chat_id' => $message['chat']['id'], 'text' => '[ Error ] Can not send replay to ' . $message['reply_to_message']['forward_from']['id'] . ' , please contact support.' ] );
-		}
-		exit();
-	}
+    function replay_message($message)
+    {
+        if (isset($message['photo'])) {
+            $this->send_post("sendPhoto", ['chat_id' => $message['reply_to_message']['forward_from']['id'], 'photo' => $message['photo'][0]['file_id'], 'caption' => $message['caption']]);
+        } elseif (isset($message['text'])) {
+            $this->send_post("sendMessage", ['chat_id' => $message['reply_to_message']['forward_from']['id'], 'text' => $message['text']]);
+        } else {
+            $this->send_post("sendMessage", ['chat_id' => $message['chat']['id'], 'text' => '[ Error ] Can not send replay to ' . $message['reply_to_message']['forward_from']['id'] . ' , please contact support.']);
+        }
+        exit();
+    }
 
-	function start($message) 
-	{		
-		$this->send_post( "sendMessage", [ 'chat_id' => $message['chat']['id'], 'text' => $this->settings['start_msg'], 'parse_mode'   => 'HTML' ] );
-		exit();
-	}
+    function start($message)
+    {
+        $this->send_post("sendMessage", ['chat_id' => $message['chat']['id'], 'text' => $this->settings['start_msg'], 'parse_mode'   => 'HTML']);
+        exit();
+    }
 
     /**
      * @param String $method_name - Telegram BOT API method
@@ -254,7 +256,7 @@ class FS_Bot
             curl_setopt($ch, CURLOPT_POST, count($data));
             curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            
+
             $result = curl_exec($ch);
             curl_close($ch);
         }
@@ -274,8 +276,8 @@ class FS_Bot
 
 
     function panel($responce = '')
-    {		
-		$v = self::VERSION;
+    {
+        $v = self::VERSION;
         echo <<<HTML
 <div class="menu">
 <b>@fwdmebot <sup>v{$v}</sup></b> | 
@@ -287,14 +289,14 @@ class FS_Bot
 <a href="index.php?action=admin&param=rcp">Recipients</a>
 </div>
 HTML;
-		if($responce != '') { 
-			echo '<div class="resp">' . $responce . '</div>';
-		}
-		
+        if ($responce != '') {
+            echo '<div class="resp">' . $responce . '</div>';
+        }
     }
 
-	function setup_auth() {
-		echo <<<HTML
+    function setup_auth()
+    {
+        echo <<<HTML
 <p>Create login and password for administrator.</p>
 <form method="POST">
 	<input type="text" name="login" placeholder="Login">
@@ -303,26 +305,26 @@ HTML;
 	<input type="submit" value="Create">
 </form>
 HTML;
-	}
+    }
 
     function setup_settings()
-    {		
-		if(!file_exists($this->settings_file)) {
-			$random_md5 = md5(time());
-			echo <<<HTML
+    {
+        if (!file_exists($this->settings_file)) {
+            $random_md5 = md5(time());
+            echo <<<HTML
 <p style="color: red;">Config not found! Create empty writeable(!) file with random name and .json extention in script directory.<br>For example <i><b>{$random_md5}.json</b></i><br>
 Contact @fwdmebot if you need help. 
 </p>
 HTML;
-		} else {
-			echo '<p>Settings file: <b>' . $this->settings_file . '</b></p>';
-		}
+        } else {
+            echo '<p>Settings file: <b>' . $this->settings_file . '</b></p>';
+        }
     }
 
 
     function setup_name()
     {
-		$name = isset($this->settings['name']) ? $this->settings['name'] : '';
+        $name = isset($this->settings['name']) ? $this->settings['name'] : '';
         echo <<<HTML
 <p>Enter your bot name </p>
 <form method="POST">
@@ -334,7 +336,7 @@ HTML;
 
     function setup_token()
     {
-		$token = isset($this->settings['token']) ? $this->settings['token'] : '';
+        $token = isset($this->settings['token']) ? $this->settings['token'] : '';
         echo <<<HTML
 <p>Enter your bot token from @BotFather</p>
 <form method="POST">
@@ -344,9 +346,9 @@ HTML;
 HTML;
     }
 
-	function setup_webhook()
+    function setup_webhook()
     {
-		$webhook = isset($this->settings['webhook']) ? $this->settings['webhook'] : '';
+        $webhook = isset($this->settings['webhook']) ? $this->settings['webhook'] : '';
         echo <<<HTML
 <p>Enter URL of your site, where script located. For example https://mysite.com/fsbot/index.php?action=bot</p>
 <form method="POST">
@@ -358,7 +360,7 @@ HTML;
 
     function setup_start()
     {
-		$start = isset($this->settings['start_msg']) ? $this->settings['start_msg'] : '';
+        $start = isset($this->settings['start_msg']) ? $this->settings['start_msg'] : '';
         echo <<<HTML
 <p>Enter message text for /start command, html tags &lt;a&gt; &lt;b&gt; &lt;i&gt; &lt;code&gt; and other allowed by Telegram API</p>
 <form method="POST">
@@ -368,26 +370,28 @@ HTML;
 HTML;
     }
 
-	function setup_rcp() {
-		$recipients = isset($this->settings['rcp']) ? implode(PHP_EOL, $this->settings['rcp']) : '';
-		echo <<<HTML
+    function setup_rcp()
+    {
+        $recipients = isset($this->settings['rcp']) ? implode(PHP_EOL, $this->settings['rcp']) : '';
+        echo <<<HTML
 <p>Enter recipients IDs by line</p>
 <form method="POST">
 	<textarea name="rcp">{$recipients}</textarea>
 	<input type="submit" value="Save">
 </form>
 HTML;
-	}
+    }
 
-	function help() {		
-		echo <<<HTML
+    function help()
+    {
+        echo <<<HTML
 <p>If you need help contact us via <a href="https://t.me/fwdmebot">@fwdmebot</a></p>
 HTML;
-	}
+    }
 
     function admin_header()
-    {		
-		$v = self::VERSION;
+    {
+        $v = self::VERSION;
         echo <<<HTML
 <html>
 	<head>
@@ -423,9 +427,10 @@ HTML;
         file_put_contents($log_file, '--- ' . date("Y-m-d H:i:s", time()) . ' ' . PHP_EOL . $message . PHP_EOL, FILE_APPEND);
     }
 
-	function login() {
-		
-	echo <<<HTML
+    function login()
+    {
+
+        echo <<<HTML
 <html>
 <head></head>
 <body>
@@ -437,7 +442,7 @@ HTML;
 </body>
 </html>
 HTML;
-	}
+    }
 }
 
 FS_Bot::get_instance();
