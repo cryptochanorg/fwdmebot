@@ -1,10 +1,10 @@
 <?php
 
 /* 
-	Forward Support Bot for Telegram
+	Forward Me Bot for Telegram
 */
 
-class FS_Bot
+class Fwdme_Bot
 {
     const VERSION = '0.1.0';
     const API_URL = 'https://api.telegram.org/bot';
@@ -443,4 +443,4 @@ HTML;
     }
 }
 
-FS_Bot::get_instance();
+Fwdme_Bot::get_instance();
