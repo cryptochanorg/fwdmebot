@@ -20,5 +20,5 @@ Setup
 9. Setup recipients
 10. Done! 
 
-Questions and support @fwdmebot
+Questions and support https://t.me/fwdmebot
 
