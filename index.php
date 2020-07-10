@@ -48,9 +48,7 @@ class FS_Bot
             $uri = parse_url($this->settings['webhook']);
             if (isset($_SERVER['REQUEST_URI']) && $_SERVER['REQUEST_URI'] == $uri['path'] . "?" . $uri['query']) {
                 $content = file_get_contents("php://input");
-                $update  = json_decode($content, true);
-
-                $this->logger(var_export($update, true));
+                $update  = json_decode($content, true);               
 
                 if (isset($update["message"])) {
                     $this->process_message($update["message"]);
@@ -214,8 +212,7 @@ class FS_Bot
     function interference_message($message)
     {
         if (!empty($this->settings['rcp'])) {
-            foreach ($this->settings['rcp'] as $rcp) {
-                $this->logger(var_export(['chat_id' => (int) $rcp, 'from_chat_id' => $message['chat']['id'], 'message_id' => $message['message_id']], true));
+            foreach ($this->settings['rcp'] as $rcp) {                
                 $this->send_post("forwardMessage", ['chat_id' => (int) $rcp, 'from_chat_id' => $message['chat']['id'], 'message_id' => $message['message_id']]);
                 sleep(self::SLEEP_TIME);
             }
