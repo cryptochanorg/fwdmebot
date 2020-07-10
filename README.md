@@ -18,7 +18,7 @@ Setup
 6. Setup bot TOKEN from @BotFather
 7. Setup WEBHOOK url, for example https://mysite.com/bot/index.php?action=bot
 8. Setup /start command message 
-9. Setup recipients
+9. Setup recipients, use command /id in your bot to get account Telegram ID
 10. Done! 
 
 Questions and support https://t.me/fwdmebot
