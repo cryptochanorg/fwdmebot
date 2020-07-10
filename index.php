@@ -283,7 +283,8 @@ class FS_Bot
 <a href="index.php?action=admin&param=setup_token">Token</a> | 
 <a href="index.php?action=admin&param=setup_webhook">Webhook</a> | 
 <a href="index.php?action=admin&param=setup_start">Start</a> | 
-<a href="index.php?action=admin&param=setup_rcp">Recipients</a> 
+<a href="index.php?action=admin&param=setup_rcp">Recipients</a> |
+<a href="index.php?action=admin&param=help">Help</a>
 </div>
 HTML;
         if ($responce != '') {
@@ -382,7 +383,7 @@ HTML;
     function help()
     {
         echo <<<HTML
-<p>If you need help contact us via <a href="https://t.me/fwdmebot">@fwdmebot</a></p>
+<p>If you need help contact <a href="https://t.me/fwdmebot">@fwdmebot</a></p>
 HTML;
     }
 
