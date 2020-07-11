@@ -8,7 +8,7 @@ class Fwdme_Bot
 {
     const VERSION = '0.1.0';
     const API_URL = 'https://api.telegram.org/bot';
-    const SLEEP_TIME = 1;
+    const SLEEP_TIME = 1;	
 
     private static $instance;
     private $settings;
@@ -49,6 +49,9 @@ class Fwdme_Bot
             if (isset($_SERVER['REQUEST_URI']) && $_SERVER['REQUEST_URI'] == $uri['path'] . "?" . $uri['query']) {
                 $content = file_get_contents("php://input");
                 $update  = json_decode($content, true);               
+				
+				// debug requests
+				// $this->logger(var_export($update, true));
 
                 if (isset($update["message"])) {
                     $this->process_message($update["message"]);
@@ -213,21 +216,54 @@ class Fwdme_Bot
     {
         if (!empty($this->settings['rcp'])) {
             foreach ($this->settings['rcp'] as $rcp) {                
-                $this->send_post("forwardMessage", ['chat_id' => (int) $rcp, 'from_chat_id' => $message['chat']['id'], 'message_id' => $message['message_id']]);
+                $result = $this->send_post("forwardMessage", ['chat_id' => (int) $rcp, 'from_chat_id' => $message['chat']['id'], 'message_id' => $message['message_id']]);
+				if(!empty($result)) {
+					$result = json_decode($result, true);
+					if(isset($result['result']) && isset($result['result']['message_id'])) {
+						$rel = [$message['chat']['id'], $message['message_id'], $rcp, $result['result']['message_id']];						
+						$this->create_rel($rel);
+					}
+				}				
                 sleep(self::SLEEP_TIME);
             }
         }
     }
 
+	function create_rel($rel) {
+		file_put_contents(__DIR__ . '/data/' . $rel[2] . '_' . $rel[3], $rel[0] . '_' . $rel[1]);
+	}
+
+	function get_rel($chat_id, $message_id) {
+		$result = false;
+		$rel_file = __DIR__ . '/data/' . $chat_id . '_' . $message_id;
+		if(file_exists($rel_file)) {
+			$src = file_get_contents($rel_file);
+			if(!empty($src)) {
+				$result = explode("_", $src);				
+			}
+		}
+		
+		return $result;
+	}
+
     function replay_message($message)
     {
-        if (isset($message['photo'])) {
-            $this->send_post("sendPhoto", ['chat_id' => $message['reply_to_message']['forward_from']['id'], 'photo' => $message['photo'][0]['file_id'], 'caption' => $message['caption']]);
-        } elseif (isset($message['text'])) {
-            $this->send_post("sendMessage", ['chat_id' => $message['reply_to_message']['forward_from']['id'], 'text' => $message['text']]);
-        } else {
-            $this->send_post("sendMessage", ['chat_id' => $message['chat']['id'], 'text' => '[ Error ] Can not send replay to ' . $message['reply_to_message']['forward_from']['id'] . ' , please contact support.']);
-        }
+		
+		$rel = $this->get_rel($message['chat']['id'], $message['reply_to_message']['message_id']);
+
+		if($rel) {
+			$chat_id = $rel[0];
+			if (isset($message['photo'])) {
+				$this->send_post("sendPhoto", ['chat_id' => $chat_id, 'photo' => $message['photo'][0]['file_id'], 'caption' => $message['caption']]);
+			} elseif (isset($message['text'])) {
+				$this->send_post("sendMessage", ['chat_id' => $chat_id, 'text' => $message['text']]);
+			} else {
+				$this->send_post("sendMessage", ['chat_id' => $message['chat']['id'], 'text' => '[ Error ] Can not send replay to ' . $chat_id . ' , please contact support.']);
+			}
+		} else {
+			$this->send_post("sendMessage", ['chat_id' => $message['chat']['id'], 'text' => '[ Error ] Can not send replay, message not found, please contact support.']);
+		}
+		        
         exit();
     }
 
@@ -253,8 +289,8 @@ class Fwdme_Bot
             curl_setopt($ch, CURLOPT_POST, count($data));
             curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+            $result = curl_exec($ch);					
 
-            $result = curl_exec($ch);
             curl_close($ch);
         }
 
@@ -307,16 +343,42 @@ HTML;
 
     function setup_settings()
     {
+		// default state
+		$state = 0;		
         if (!file_exists($this->settings_file)) {
+			$state = 1; // setup
             $random_md5 = md5(time());
-            echo <<<HTML
-<p style="color: red;">Config not found! Create empty writeable(!) file with random name and .json extention in script directory.<br>For example <i><b>{$random_md5}.json</b></i><br>
-Contact @fwdmebot if you need help. 
-</p>
+			file_put_contents($random_md5 . '.json', '');
+			if (!file_exists($random_md5 . '.json')) {
+				$state = 2; // setup error
+				echo <<<HTML
+<p style="color: red;">Config not found! Create empty writeable(!) file with random name and .json extention in script directory.<br>For example <i><b>{$random_md5}.json</b></i></p>
 HTML;
+			} else {
+				$state = 3; // setup success
+				echo '<p>Settings file created: <b>' . $random_md5 . '.json' . '</b></p>';
+			}
         } else {
             echo '<p>Settings file: <b>' . $this->settings_file . '</b></p>';
         }
+
+		$data_dir = __DIR__ . '/data';
+		if(!file_exists($data_dir . '/')) {
+			mkdir($data_dir, 0777);
+			if(!file_exists($data_dir . '/')) {
+				$state = 2; // setup error
+				echo <<<HTML
+<p style="color: red;">Directory {$data_dir} not found!<br>Create directory with name <b>data</b> and 777 permissions in script directory.</p>
+HTML;
+			} else {
+				$state = 3; // setup success
+				echo '<p>Data directory created: <b>OK</b></p>';
+			}
+		} else {
+			echo '<p>Data directory: <b>OK</b></p>';
+		}
+
+		if($state == 3) echo '<p><a href="">Click here</a> to continue.</p>';
     }
 
 
@@ -422,7 +484,7 @@ HTML;
 
     function logger($message, $log_file = 'main.log')
     {
-        file_put_contents($log_file, '--- ' . date("Y-m-d H:i:s", time()) . ' ' . PHP_EOL . $message . PHP_EOL, FILE_APPEND);
+        file_put_contents($log_file, date("Y-m-d H:i:s", time()) . ' ' . PHP_EOL . $message . PHP_EOL . '----------' . PHP_EOL, FILE_APPEND);
     }
 
     function login()
