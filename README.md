@@ -18,8 +18,13 @@ Setup
 6. Setup WEBHOOK url, for example https://mysite.com/bot/index.php?action=bot
 7. Setup /start command message 
 8. Setup bot admins, use command /id in your bot to get account Telegram ID
-9. Optionaly connect chat where bot will forward messages. Useful in support team case.
+9. Optionaly connect chat where bot will forward messages. Useful in support team case. Use /connect@botname command in selected chat. 
 10. Done! 
+
+Bot commands
+
+1. /id - get account and chat Telegram IDs
+2. /connect - for chat connection requests
 
 Questions and support https://t.me/fwdmebot
 
