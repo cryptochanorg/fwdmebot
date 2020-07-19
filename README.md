@@ -1,6 +1,6 @@
 # fwdmebot
 
-Feedback Telegram bot. 
+Create your own feedback Telegram bot without third-party bots.
 
 All messages that users send to your bot will be forwarded to selected Telegram users or chats.
 Replay to forwarded messages, talk with users from bot name, without displaying your contact.
