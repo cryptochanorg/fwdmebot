@@ -1,6 +1,6 @@
 # fwdmebot
 
-Bot will forward all messages from users to selected Telegram IDs.
+Bot will forward all messages from users to selected Telegram users or chats.
 Replay to forwarded messages, talk with users from bot name, without displaying your contact.
 
 One simple PHP script.
@@ -17,8 +17,13 @@ Setup
 5. Setup bot TOKEN from @BotFather
 6. Setup WEBHOOK url, for example https://mysite.com/bot/index.php?action=bot
 7. Setup /start command message 
-8. Setup recipients, use command /id in your bot to get account Telegram ID
-9. Done! 
+8. Setup bot admins, use command /id in your bot to get account Telegram ID
+9. Optionaly connect chat where bot will forward messages. Useful in support team case.
+10. Done! 
 
 Questions and support https://t.me/fwdmebot
 
+Changelog
+
+v0.1.1 - Chats support
+v0.1.0 - Initail release

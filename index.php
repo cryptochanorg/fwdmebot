@@ -6,7 +6,7 @@
 
 class Fwdme_Bot
 {
-    const VERSION = '0.1.0';
+    const VERSION = '0.1.1';
     const API_URL = 'https://api.telegram.org/bot';
     const SLEEP_TIME = 1;	
 
@@ -51,11 +51,14 @@ class Fwdme_Bot
                 $update  = json_decode($content, true);               
 				
 				// debug requests
-				// $this->logger(var_export($update, true));
+				$this->logger(var_export($update, true));
 
                 if (isset($update["message"])) {
                     $this->process_message($update["message"]);
                 }
+				if (isset($update["callback_query"])) {
+					$this->process_callback($update["callback_query"]);
+				}
             }
         }
     }
@@ -80,9 +83,25 @@ class Fwdme_Bot
             return $this->save_webhook($_POST['webhook']);
         if (isset($_POST['start_msg']))
             return $this->save_start_msg($_POST['start_msg']);
-        if (isset($_POST['rcp']))
-            return $this->save_recipients($_POST['rcp']);
+        if (isset($_POST['admins']))
+            return $this->save_admins($_POST['admins']);
+		if (isset($_POST['chats']))
+            return $this->disconnect_chat($_POST['chats']);
     }
+
+	function disconnect_chat($chats) 
+	{				
+		if(isset($this->settings['chats']) && is_array($chats)) {			
+			foreach($chats as $chat) {
+				$key = array_search($chat, $this->settings['chats']);
+				if($key !== false) { 
+					unset($this->settings['chats'][$key]);
+					$this->save_settings();
+					return 'Ok, chat ' . $chat . ' deleted.';
+				}
+			}
+		} else return 'Error, chat not exist.';
+	}
 
     function authorization($login, $password)
     {
@@ -144,9 +163,9 @@ class Fwdme_Bot
         //echo var_export($this->send_post( 'getwebhookinfo' ), true);
     }
 
-    function save_recipients($recipients)
+    function save_admins($recipients)
     {
-        $this->settings['rcp'] = array_map('trim', explode(PHP_EOL, $recipients));
+        $this->settings['admins'] = array_map('trim', explode(PHP_EOL, $recipients));
         $this->save_settings();
     }
 
@@ -181,7 +200,7 @@ class Fwdme_Bot
         elseif (!isset($this->settings['token'])) $param = 'setup_token';
         elseif (!isset($this->settings['webhook'])) $param = 'setup_webhook';
         elseif (!isset($this->settings['start_msg'])) $param = 'setup_start';
-        elseif (!isset($this->settings['rcp'])) $param = 'setup_rcp';
+        elseif (!isset($this->settings['admins'])) $param = 'setup_admins';
 
         $this->admin_header();
         $this->panel($responce);
@@ -196,27 +215,95 @@ class Fwdme_Bot
         // process incoming message
         if (isset($message)) {
             $text = isset($message['text']) ? $message['text'] : '';
-            if ($text === "/start" || $text === "/start" . $this->settings['name']) {
+            if ($text === "/start" || $text === strtolower("/start" . $this->settings['name'])) {
                 $this->start($message);
-            } elseif ($text === "/id" || $text === "/id" . $this->settings['name']) {
+            } elseif ($text === "/id" || $text === strtolower("/id" . $this->settings['name'])) {
                 $this->get_id($message);
+            } elseif ($text === "/connect" || $text === strtolower("/connect" . $this->settings['name'])) {
+                $this->connect($message);
             } else {
-                if (!in_array($message['from']['id'], $this->settings['rcp'])) $this->interference_message($message);
-                if (in_array($message['from']['id'], $this->settings['rcp']) && isset($message['reply_to_message'])) $this->replay_message($message);
+                if (!in_array($message['from']['id'], $this->settings['admins'])) $this->interference_message($message);
+                if (in_array($message['from']['id'], $this->settings['admins']) && isset($message['reply_to_message'])) $this->replay_message($message);
             }
         }
     }
 
+  function process_callback($callback)
+    {
+        if (isset($callback['data'])) {
+			$request = explode(" ", $callback['data']);
+			if($request[0] == '/connect_chat' && isset($request[1])) $this->connect_chat($request[1], $callback['id']);
+		}
+	}
+
+	function connect_chat($chat_id, $callback_id) {
+		$connected = false;
+		$chat_id = filter_var($chat_id, FILTER_SANITIZE_STRING);
+		if(isset($this->settings['chats'])) {
+			if(!in_array($chat_id, $this->settings['chats'])) { 				
+				$this->settings['chats'][] = $chat_id;
+				$this->save_settings();
+				$data = ['callback_query_id' => $callback_id, 'text' => 'Chat ' . $chat_id . ' connected!', 'show_alert' => false];            
+			} else {
+				$data = ['callback_query_id' => $callback_id, 'text' => 'Error, chat already connected!', 'show_alert' => false];            
+			}
+		} else {			
+			$this->settings['chats'][] = $chat_id;
+			$this->save_settings();
+			$data = ['callback_query_id' => $callback_id, 'text' => 'Chat ' . $chat_id . ' connected!', 'show_alert' => false];            
+		}
+
+		$this->send_post('answerCallbackQuery', $data);
+		
+	}
+
+	function connect($message) {
+		// only admins allowed
+		if (in_array($message['from']['id'], $this->settings['admins'])) {
+			$inline_keyboard[] = [['text' => "Confirm", 'callback_data' => '/connect_chat ' . $message['chat']['id'] ]];
+			$keyboard = ["inline_keyboard" => $inline_keyboard];
+
+			$reply_markup = json_encode($keyboard);
+			foreach($this->settings['admins'] as $admin) {
+				$this->send_post("sendMessage", [
+					'chat_id' => $admin, 
+					'text' => 'Connection request from <b>' . $message['chat']['title'] . '</b> (' . $message['chat']['id'] . ')', 
+					'parse_mode'   => 'HTML', 
+					'reply_markup' => $reply_markup
+				]);
+			}
+		}
+	}
+
     function get_id($message)
     {
-        $this->send_post("sendMessage", ['chat_id' => $message['chat']['id'], 'text' => 'Your Telegram ID: <code>' . $message['from']['id'] . '</code>', 'parse_mode'   => 'HTML']);
+		$msg = 'Your Telegram ID: <code>' . $message['from']['id'] . '</code>';
+		if(isset($message['chat']['id'])) $msg .= PHP_EOL . 'This chat ID: <code>' . $message['chat']['id'] . '</code>';
+        $this->send_post("sendMessage", ['chat_id' => $message['chat']['id'], 'text' => $msg, 'parse_mode'   => 'HTML']);
     }
 
     function interference_message($message)
     {
-        if (!empty($this->settings['rcp'])) {
-            foreach ($this->settings['rcp'] as $rcp) {                
-                $result = $this->send_post("forwardMessage", ['chat_id' => (int) $rcp, 'from_chat_id' => $message['chat']['id'], 'message_id' => $message['message_id']]);
+		// by default empty recipients
+		$rcps = [];
+
+		// if admins exists forward message to them
+		if (isset($this->settings['admins']) && !empty($this->settings['admins'])) {
+			$rcps = $this->settings['admins'];
+		}
+
+		// if chats connected forward message to chats
+        if (isset($this->settings['chats']) && !empty($this->settings['chats'])) {
+            $rcps = $this->settings['chats'];
+        } 
+
+		if(!empty($rcps)) {
+			foreach ($rcps as $rcp) {
+				$result = $this->send_post("forwardMessage", [
+					'chat_id' => (int) $rcp, 
+					'from_chat_id' => $message['chat']['id'], 
+					'message_id' => $message['message_id']
+				]);
 				if(!empty($result)) {
 					$result = json_decode($result, true);
 					if(isset($result['result']) && isset($result['result']['message_id'])) {
@@ -224,9 +311,9 @@ class Fwdme_Bot
 						$this->create_rel($rel);
 					}
 				}				
-                sleep(self::SLEEP_TIME);
-            }
-        }
+				sleep(self::SLEEP_TIME);
+			}
+		}
     }
 
 	function create_rel($rel) {
@@ -311,6 +398,7 @@ class Fwdme_Bot
     function panel($responce = '')
     {
         $v = self::VERSION;
+		
         echo <<<HTML
 <div class="menu">
 <b>@fwdmebot <sup>v{$v}</sup></b> | 
@@ -319,7 +407,8 @@ class Fwdme_Bot
 <a href="index.php?action=admin&param=setup_token">Token</a> | 
 <a href="index.php?action=admin&param=setup_webhook">Webhook</a> | 
 <a href="index.php?action=admin&param=setup_start">Start</a> | 
-<a href="index.php?action=admin&param=setup_rcp">Recipients</a> |
+<a href="index.php?action=admin&param=setup_admins">Bot admins</a> |
+<a href="index.php?action=admin&param=setup_chats">Chats</a> |
 <a href="index.php?action=admin&param=help">Help</a>
 </div>
 HTML;
@@ -360,6 +449,7 @@ HTML;
 			}
         } else {
             echo '<p>Settings file: <b>' . $this->settings_file . '</b></p>';
+			
         }
 
 		$data_dir = __DIR__ . '/data';
@@ -430,15 +520,32 @@ HTML;
 HTML;
     }
 
-    function setup_rcp()
+    function setup_admins()
     {
-        $recipients = isset($this->settings['rcp']) ? implode(PHP_EOL, $this->settings['rcp']) : '';
+        $recipients = isset($this->settings['admins']) ? implode(PHP_EOL, $this->settings['admins']) : '';
         echo <<<HTML
-<p>Enter recipients IDs by line</p>
+<p>Enter bot administrators ID by line, to get Telegram ID use /id command in your bot</p>
 <form method="POST">
-	<textarea name="rcp">{$recipients}</textarea>
+	<textarea name="admins">{$recipients}</textarea>
 	<input type="submit" value="Save">
 </form>
+HTML;
+    }
+
+    function setup_chats()
+    {
+		$html = '<p>To connect chat add your bot to the chat and use command /connect@botname</p>';
+        if(!empty($this->settings['chats'])) {
+			$html .= '<form method="POST">';
+			foreach($this->settings['chats'] as $n => $chat) {
+				$html .= '<p><label><input type="checkbox" name="chats[]" value="' . $chat . '"> ' . $chat . '</label></p>';
+			}
+			$html .= '<input type="submit" value="Disconnect"></form>';
+		} else {
+			$html .= '<p>There are no connected chats.</p>';
+		}
+        echo <<<HTML
+{$html}
 HTML;
     }
 
@@ -459,15 +566,17 @@ HTML;
 	<title>@fwdmebot {$v}</title>
 	<style>
 		* {margin: 0; padding: 0;} 
-		html {font-family:sans-serif;}
+		html, body {font-family:sans-serif; font-size: 14px; }
 		a{text-decoration:none;} 
 		.wrapper { padding: 10px 5px; } 
 		p { padding: 5px; } 
-		textarea, input { width: 50%; padding:5px; } 
+		textarea, input[type="text"] { width: 50%; padding:5px; } 
 		input[type="submit"] { display: block; padding: 5px 10px; margin: 10px 0;} 
 		textarea{ height: 30%; } 
 		.menu { background-color: #32afed; padding: 0 0 5px 10px; color: #32afed; } 
 		.menu a, .menu b { color: #fff; } 		 
+		form { margin: 5px; }
+		input[type="submit"], .btn { background-color: #32afed; padding: 3px; color: #fff; border: 0; cursor: pointer; }
 	</style>
 	</head>
 	<body>
