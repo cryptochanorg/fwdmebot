@@ -1,6 +1,8 @@
 # fwdmebot
 
-Bot will forward all messages from users to selected Telegram users or chats.
+Feedback Telegram bot. 
+
+All messages that users send to your bot will be forwarded to selected Telegram users or chats.
 Replay to forwarded messages, talk with users from bot name, without displaying your contact.
 
 One simple PHP script.
