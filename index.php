@@ -8,7 +8,7 @@ class Fwdme_Bot
 {
     const VERSION = '0.1.1';
     const API_URL = 'https://api.telegram.org/bot';
-    const SLEEP_TIME = 1;	
+    const SLEEP_TIME = 1;
 
     private static $instance;
     private $settings;
@@ -32,7 +32,10 @@ class Fwdme_Bot
         $this->admin();
     }
 
-
+    /**
+     * Load settings from file
+     *
+     */
     function settings()
     {
         $config = glob('*.json');
@@ -42,27 +45,36 @@ class Fwdme_Bot
         }
     }
 
+    /**
+     * Proccess all requests to script
+     *
+     */
     function requests()
     {
         if (isset($this->settings['webhook'])) {
             $uri = parse_url($this->settings['webhook']);
             if (isset($_SERVER['REQUEST_URI']) && $_SERVER['REQUEST_URI'] == $uri['path'] . "?" . $uri['query']) {
                 $content = file_get_contents("php://input");
-                $update  = json_decode($content, true);               
-				
-				// debug requests
-				$this->logger(var_export($update, true));
+                $update  = json_decode($content, true);
+
+                // debug requests
+                $this->logger(var_export($update, true));
 
                 if (isset($update["message"])) {
                     $this->process_message($update["message"]);
                 }
-				if (isset($update["callback_query"])) {
-					$this->process_callback($update["callback_query"]);
-				}
+                if (isset($update["callback_query"])) {
+                    $this->process_callback($update["callback_query"]);
+                }
             }
         }
     }
 
+    /**
+     * Control panel requests
+     * 
+     * @return mixed
+     */
     function admin_requests()
     {
 
@@ -85,29 +97,49 @@ class Fwdme_Bot
             return $this->save_start_msg($_POST['start_msg']);
         if (isset($_POST['admins']))
             return $this->save_admins($_POST['admins']);
-		if (isset($_POST['chats']))
+        if (isset($_POST['chats']))
             return $this->disconnect_chat($_POST['chats']);
     }
 
-	function disconnect_chat($chats) 
-	{				
-		if(isset($this->settings['chats']) && is_array($chats)) {			
-			foreach($chats as $chat) {
-				$key = array_search($chat, $this->settings['chats']);
-				if($key !== false) { 
-					unset($this->settings['chats'][$key]);
-					$this->save_settings();
-					return 'Ok, chat ' . $chat . ' deleted.';
-				}
-			}
-		} else return 'Error, chat not exist.';
-	}
+    /**
+     * Delete chat from connected 
+     * @param array $chats - input chats for deleting
+     * @return string $result
+     */
+    function disconnect_chat($chats)
+    {
+        $result = [];
+        if (isset($this->settings['chats']) && is_array($chats)) {
+            foreach ($chats as $chat) {
+                $key = array_search($chat, $this->settings['chats']);
+                if ($key !== false) {
+                    unset($this->settings['chats'][$key]);
+                    $this->save_settings();
+                    $result[] = 'Ok, chat ' . $chat . ' deleted.';
+                } else $result[] = 'Error, chat ' . $chat . ' not deleted.';
+            }
+        } else $result[] = 'Error, no connected chats found.';
 
+        return implode('<br>', $result);
+    }
+
+    /**
+     * Authorization - set $_SESSION['auth'] to TRUE
+     * @param string $login - admin login
+     * @param string $password - admin password	 
+     */
     function authorization($login, $password)
     {
         if ($this->settings['login'] == $login && $this->settings['pass'] == md5(md5($password))) $_SESSION['auth'] = true;
     }
 
+    /**
+     * Save authorization credentials
+     * @param string $login - admin login
+     * @param string $password - admin password	 
+     * @param string $cpassword - password confirmation
+     * @return string message
+     */
     function save_authorization($login, $password, $cpassword)
     {
         $login = filter_var($login, FILTER_SANITIZE_STRING);
@@ -125,18 +157,30 @@ class Fwdme_Bot
         } else return 'Error, not allowed already exist';
     }
 
+    /**
+     * Save bot name
+     * @param string $name - Telegram bot name	 
+     */
     function save_name($name)
     {
         $this->settings['name'] = filter_var($name, FILTER_SANITIZE_STRING);
         $this->save_settings();
     }
 
+    /**
+     * Save bot token
+     * @param string $token - Telegram bot token from @BotFather
+     */
     function save_token($token)
     {
         $this->settings['token'] = filter_var($token, FILTER_SANITIZE_STRING);
         $this->save_settings();
     }
 
+    /**
+     * Save formatted text for message bot sent when command /start requested
+     * @param string $msg - formatted message text
+     */
     function save_start_msg($msg)
     {
         // @todo sanitize $msg
@@ -144,6 +188,11 @@ class Fwdme_Bot
         $this->save_settings();
     }
 
+    /**
+     * Save webhook url for Telegram API requests
+     * @param string $url
+     * @return string result message
+     */
     function save_webhook($url)
     {
         // @todo sanitize $url
@@ -163,6 +212,10 @@ class Fwdme_Bot
         //echo var_export($this->send_post( 'getwebhookinfo' ), true);
     }
 
+    /**
+     * Save bot admins credentials
+     * @param string $recipients - Telegram user ID by line	 	 
+     */
     function save_admins($recipients)
     {
         $this->settings['admins'] = array_map('trim', explode(PHP_EOL, $recipients));
@@ -228,129 +281,132 @@ class Fwdme_Bot
         }
     }
 
-  function process_callback($callback)
+    function process_callback($callback)
     {
         if (isset($callback['data'])) {
-			$request = explode(" ", $callback['data']);
-			if($request[0] == '/connect_chat' && isset($request[1])) $this->connect_chat($request[1], $callback['id']);
-		}
-	}
+            $request = explode(" ", $callback['data']);
+            if ($request[0] == '/connect_chat' && isset($request[1])) $this->connect_chat($request[1], $callback['id']);
+        }
+    }
 
-	function connect_chat($chat_id, $callback_id) {
-		$connected = false;
-		$chat_id = filter_var($chat_id, FILTER_SANITIZE_STRING);
-		if(isset($this->settings['chats'])) {
-			if(!in_array($chat_id, $this->settings['chats'])) { 				
-				$this->settings['chats'][] = $chat_id;
-				$this->save_settings();
-				$data = ['callback_query_id' => $callback_id, 'text' => 'Chat ' . $chat_id . ' connected!', 'show_alert' => false];            
-			} else {
-				$data = ['callback_query_id' => $callback_id, 'text' => 'Error, chat already connected!', 'show_alert' => false];            
-			}
-		} else {			
-			$this->settings['chats'][] = $chat_id;
-			$this->save_settings();
-			$data = ['callback_query_id' => $callback_id, 'text' => 'Chat ' . $chat_id . ' connected!', 'show_alert' => false];            
-		}
+    function connect_chat($chat_id, $callback_id)
+    {
+        $connected = false;
+        $chat_id = filter_var($chat_id, FILTER_SANITIZE_STRING);
+        if (isset($this->settings['chats'])) {
+            if (!in_array($chat_id, $this->settings['chats'])) {
+                $this->settings['chats'][] = $chat_id;
+                $this->save_settings();
+                $data = ['callback_query_id' => $callback_id, 'text' => 'Chat ' . $chat_id . ' connected!', 'show_alert' => false];
+            } else {
+                $data = ['callback_query_id' => $callback_id, 'text' => 'Error, chat already connected!', 'show_alert' => false];
+            }
+        } else {
+            $this->settings['chats'][] = $chat_id;
+            $this->save_settings();
+            $data = ['callback_query_id' => $callback_id, 'text' => 'Chat ' . $chat_id . ' connected!', 'show_alert' => false];
+        }
 
-		$this->send_post('answerCallbackQuery', $data);
-		
-	}
+        $this->send_post('answerCallbackQuery', $data);
+    }
 
-	function connect($message) {
-		// only admins allowed
-		if (in_array($message['from']['id'], $this->settings['admins'])) {
-			$inline_keyboard[] = [['text' => "Confirm", 'callback_data' => '/connect_chat ' . $message['chat']['id'] ]];
-			$keyboard = ["inline_keyboard" => $inline_keyboard];
+    function connect($message)
+    {
+        // only admins allowed
+        if (in_array($message['from']['id'], $this->settings['admins'])) {
+            $inline_keyboard[] = [['text' => "Confirm", 'callback_data' => '/connect_chat ' . $message['chat']['id']]];
+            $keyboard = ["inline_keyboard" => $inline_keyboard];
 
-			$reply_markup = json_encode($keyboard);
-			foreach($this->settings['admins'] as $admin) {
-				$this->send_post("sendMessage", [
-					'chat_id' => $admin, 
-					'text' => 'Connection request from <b>' . $message['chat']['title'] . '</b> (' . $message['chat']['id'] . ')', 
-					'parse_mode'   => 'HTML', 
-					'reply_markup' => $reply_markup
-				]);
-			}
-		}
-	}
+            $reply_markup = json_encode($keyboard);
+            foreach ($this->settings['admins'] as $admin) {
+                $this->send_post("sendMessage", [
+                    'chat_id' => $admin,
+                    'text' => 'Connection request from <b>' . $message['chat']['title'] . '</b> (' . $message['chat']['id'] . ')',
+                    'parse_mode'   => 'HTML',
+                    'reply_markup' => $reply_markup
+                ]);
+            }
+        }
+    }
 
     function get_id($message)
     {
-		$msg = 'Your Telegram ID: <code>' . $message['from']['id'] . '</code>';
-		if(isset($message['chat']['id'])) $msg .= PHP_EOL . 'This chat ID: <code>' . $message['chat']['id'] . '</code>';
+        $msg = 'Your Telegram ID: <code>' . $message['from']['id'] . '</code>';
+        if (isset($message['chat']['id'])) $msg .= PHP_EOL . 'This chat ID: <code>' . $message['chat']['id'] . '</code>';
         $this->send_post("sendMessage", ['chat_id' => $message['chat']['id'], 'text' => $msg, 'parse_mode'   => 'HTML']);
     }
 
     function interference_message($message)
     {
-		// by default empty recipients
-		$rcps = [];
+        // by default empty recipients
+        $rcps = [];
 
-		// if admins exists forward message to them
-		if (isset($this->settings['admins']) && !empty($this->settings['admins'])) {
-			$rcps = $this->settings['admins'];
-		}
+        // if admins exists forward message to them
+        if (isset($this->settings['admins']) && !empty($this->settings['admins'])) {
+            $rcps = $this->settings['admins'];
+        }
 
-		// if chats connected forward message to chats
+        // if chats connected forward message to chats
         if (isset($this->settings['chats']) && !empty($this->settings['chats'])) {
             $rcps = $this->settings['chats'];
-        } 
+        }
 
-		if(!empty($rcps)) {
-			foreach ($rcps as $rcp) {
-				$result = $this->send_post("forwardMessage", [
-					'chat_id' => (int) $rcp, 
-					'from_chat_id' => $message['chat']['id'], 
-					'message_id' => $message['message_id']
-				]);
-				if(!empty($result)) {
-					$result = json_decode($result, true);
-					if(isset($result['result']) && isset($result['result']['message_id'])) {
-						$rel = [$message['chat']['id'], $message['message_id'], $rcp, $result['result']['message_id']];						
-						$this->create_rel($rel);
-					}
-				}				
-				sleep(self::SLEEP_TIME);
-			}
-		}
+        if (!empty($rcps)) {
+            foreach ($rcps as $rcp) {
+                $result = $this->send_post("forwardMessage", [
+                    'chat_id' => (int) $rcp,
+                    'from_chat_id' => $message['chat']['id'],
+                    'message_id' => $message['message_id']
+                ]);
+                if (!empty($result)) {
+                    $result = json_decode($result, true);
+                    if (isset($result['result']) && isset($result['result']['message_id'])) {
+                        $rel = [$message['chat']['id'], $message['message_id'], $rcp, $result['result']['message_id']];
+                        $this->create_rel($rel);
+                    }
+                }
+                sleep(self::SLEEP_TIME);
+            }
+        }
     }
 
-	function create_rel($rel) {
-		file_put_contents(__DIR__ . '/data/' . $rel[2] . '_' . $rel[3], $rel[0] . '_' . $rel[1]);
-	}
+    function create_rel($rel)
+    {
+        file_put_contents(__DIR__ . '/data/' . $rel[2] . '_' . $rel[3], $rel[0] . '_' . $rel[1]);
+    }
 
-	function get_rel($chat_id, $message_id) {
-		$result = false;
-		$rel_file = __DIR__ . '/data/' . $chat_id . '_' . $message_id;
-		if(file_exists($rel_file)) {
-			$src = file_get_contents($rel_file);
-			if(!empty($src)) {
-				$result = explode("_", $src);				
-			}
-		}
-		
-		return $result;
-	}
+    function get_rel($chat_id, $message_id)
+    {
+        $result = false;
+        $rel_file = __DIR__ . '/data/' . $chat_id . '_' . $message_id;
+        if (file_exists($rel_file)) {
+            $src = file_get_contents($rel_file);
+            if (!empty($src)) {
+                $result = explode("_", $src);
+            }
+        }
+
+        return $result;
+    }
 
     function replay_message($message)
     {
-		
-		$rel = $this->get_rel($message['chat']['id'], $message['reply_to_message']['message_id']);
 
-		if($rel) {
-			$chat_id = $rel[0];
-			if (isset($message['photo'])) {
-				$this->send_post("sendPhoto", ['chat_id' => $chat_id, 'photo' => $message['photo'][0]['file_id'], 'caption' => $message['caption']]);
-			} elseif (isset($message['text'])) {
-				$this->send_post("sendMessage", ['chat_id' => $chat_id, 'text' => $message['text']]);
-			} else {
-				$this->send_post("sendMessage", ['chat_id' => $message['chat']['id'], 'text' => '[ Error ] Can not send replay to ' . $chat_id . ' , please contact support.']);
-			}
-		} else {
-			$this->send_post("sendMessage", ['chat_id' => $message['chat']['id'], 'text' => '[ Error ] Can not send replay, message not found, please contact support.']);
-		}
-		        
+        $rel = $this->get_rel($message['chat']['id'], $message['reply_to_message']['message_id']);
+
+        if ($rel) {
+            $chat_id = $rel[0];
+            if (isset($message['photo'])) {
+                $this->send_post("sendPhoto", ['chat_id' => $chat_id, 'photo' => $message['photo'][0]['file_id'], 'caption' => $message['caption']]);
+            } elseif (isset($message['text'])) {
+                $this->send_post("sendMessage", ['chat_id' => $chat_id, 'text' => $message['text']]);
+            } else {
+                $this->send_post("sendMessage", ['chat_id' => $message['chat']['id'], 'text' => '[ Error ] Can not send replay to ' . $chat_id . ' , please contact support.']);
+            }
+        } else {
+            $this->send_post("sendMessage", ['chat_id' => $message['chat']['id'], 'text' => '[ Error ] Can not send replay, message not found, please contact support.']);
+        }
+
         exit();
     }
 
@@ -376,7 +432,7 @@ class Fwdme_Bot
             curl_setopt($ch, CURLOPT_POST, count($data));
             curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-            $result = curl_exec($ch);					
+            $result = curl_exec($ch);
 
             curl_close($ch);
         }
@@ -398,7 +454,7 @@ class Fwdme_Bot
     function panel($responce = '')
     {
         $v = self::VERSION;
-		
+
         echo <<<HTML
 <div class="menu">
 <b>@fwdmebot <sup>v{$v}</sup></b> | 
@@ -432,43 +488,42 @@ HTML;
 
     function setup_settings()
     {
-		// default state
-		$state = 0;		
+        // default state
+        $state = 0;
         if (!file_exists($this->settings_file)) {
-			$state = 1; // setup
+            $state = 1; // setup
             $random_md5 = md5(time());
-			file_put_contents($random_md5 . '.json', '');
-			if (!file_exists($random_md5 . '.json')) {
-				$state = 2; // setup error
-				echo <<<HTML
+            file_put_contents($random_md5 . '.json', '');
+            if (!file_exists($random_md5 . '.json')) {
+                $state = 2; // setup error
+                echo <<<HTML
 <p style="color: red;">Config not found! Create empty writeable(!) file with random name and .json extention in script directory.<br>For example <i><b>{$random_md5}.json</b></i></p>
 HTML;
-			} else {
-				$state = 3; // setup success
-				echo '<p>Settings file created: <b>' . $random_md5 . '.json' . '</b></p>';
-			}
+            } else {
+                $state = 3; // setup success
+                echo '<p>Settings file created: <b>' . $random_md5 . '.json' . '</b></p>';
+            }
         } else {
             echo '<p>Settings file: <b>' . $this->settings_file . '</b></p>';
-			
         }
 
-		$data_dir = __DIR__ . '/data';
-		if(!file_exists($data_dir . '/')) {
-			mkdir($data_dir, 0777);
-			if(!file_exists($data_dir . '/')) {
-				$state = 2; // setup error
-				echo <<<HTML
+        $data_dir = __DIR__ . '/data';
+        if (!file_exists($data_dir . '/')) {
+            mkdir($data_dir, 0777);
+            if (!file_exists($data_dir . '/')) {
+                $state = 2; // setup error
+                echo <<<HTML
 <p style="color: red;">Directory {$data_dir} not found!<br>Create directory with name <b>data</b> and 777 permissions in script directory.</p>
 HTML;
-			} else {
-				$state = 3; // setup success
-				echo '<p>Data directory created: <b>OK</b></p>';
-			}
-		} else {
-			echo '<p>Data directory: <b>OK</b></p>';
-		}
+            } else {
+                $state = 3; // setup success
+                echo '<p>Data directory created: <b>OK</b></p>';
+            }
+        } else {
+            echo '<p>Data directory: <b>OK</b></p>';
+        }
 
-		if($state == 3) echo '<p><a href="">Click here</a> to continue.</p>';
+        if ($state == 3) echo '<p><a href="">Click here</a> to continue.</p>';
     }
 
 
@@ -534,16 +589,16 @@ HTML;
 
     function setup_chats()
     {
-		$html = '<p>To connect chat add your bot to the chat and use command /connect@botname</p>';
-        if(!empty($this->settings['chats'])) {
-			$html .= '<form method="POST">';
-			foreach($this->settings['chats'] as $n => $chat) {
-				$html .= '<p><label><input type="checkbox" name="chats[]" value="' . $chat . '"> ' . $chat . '</label></p>';
-			}
-			$html .= '<input type="submit" value="Disconnect"></form>';
-		} else {
-			$html .= '<p>There are no connected chats.</p>';
-		}
+        $html = '<p>To connect chat add your bot to the chat and use command /connect@botname</p>';
+        if (!empty($this->settings['chats'])) {
+            $html .= '<form method="POST">';
+            foreach ($this->settings['chats'] as $n => $chat) {
+                $html .= '<p><label><input type="checkbox" name="chats[]" value="' . $chat . '"> ' . $chat . '</label></p>';
+            }
+            $html .= '<input type="submit" value="Disconnect"></form>';
+        } else {
+            $html .= '<p>There are no connected chats.</p>';
+        }
         echo <<<HTML
 {$html}
 HTML;
