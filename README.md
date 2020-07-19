@@ -6,7 +6,6 @@ All messages that users send to your bot will be forwarded to selected Telegram 
 Replay to forwarded messages, talk with users from bot name, without displaying your contact.
 
 One simple PHP script.
-For centralized users support.
 Website with SSL required.
 
 Setup
@@ -33,4 +32,5 @@ Questions and support https://t.me/fwdmebot
 Changelog
 
 v0.1.1 - Chats support
+
 v0.1.0 - Initail release
