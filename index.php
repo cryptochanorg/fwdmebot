@@ -1,12 +1,12 @@
 <?php
 
 /* 
-	Forward Me Bot for Telegram
+    Forward Me Bot for Telegram
 */
 
 class Fwdme_Bot
 {
-    const VERSION = '0.1.1';
+    const VERSION = '0.1.2';
     const API_URL = 'https://api.telegram.org/bot';
     const SLEEP_TIME = 1;
 
@@ -14,6 +14,11 @@ class Fwdme_Bot
     private $settings;
     private $settings_file;
 
+    /**
+     * Get an instance of the Fwdme_Bot class (Singleton pattern).
+     *
+     * @return Fwdme_Bot
+     */
     public static function get_instance()
     {
         if (!isset(self::$instance)) {
@@ -25,6 +30,9 @@ class Fwdme_Bot
         return self::$instance;
     }
 
+    /**
+     * Initialize the bot by loading settings, processing requests, and handling admin actions.
+     */
     function init()
     {
         $this->settings();
@@ -33,8 +41,7 @@ class Fwdme_Bot
     }
 
     /**
-     * Load settings from file
-     *
+     * Load settings from a JSON file.
      */
     function settings()
     {
@@ -46,8 +53,7 @@ class Fwdme_Bot
     }
 
     /**
-     * Proccess all requests to script
-     *
+     * Process all incoming requests to the script.
      */
     function requests()
     {
@@ -57,8 +63,8 @@ class Fwdme_Bot
                 $content = file_get_contents("php://input");
                 $update  = json_decode($content, true);
 
-                // debug requests
-                $this->logger(var_export($update, true));
+                // Debug requests
+                // $this->logger(var_export($update, true));
 
                 if (isset($update["message"])) {
                     $this->process_message($update["message"]);
@@ -71,13 +77,12 @@ class Fwdme_Bot
     }
 
     /**
-     * Control panel requests
-     * 
+     * Handle admin panel requests.
+     *
      * @return mixed
      */
     function admin_requests()
     {
-
         if (isset($this->settings['login']) && isset($_POST['login']) && isset($_POST['password'])) {
             return $this->authorization($_POST['login'], $_POST['password']);
         }
@@ -102,9 +107,10 @@ class Fwdme_Bot
     }
 
     /**
-     * Delete chat from connected 
-     * @param array $chats - input chats for deleting
-     * @return string $result
+     * Disconnect a chat from the connected chats list.
+     *
+     * @param array $chats - The list of chat IDs to disconnect.
+     * @return string - Result message.
      */
     function disconnect_chat($chats)
     {
@@ -124,9 +130,10 @@ class Fwdme_Bot
     }
 
     /**
-     * Authorization - set $_SESSION['auth'] to TRUE
-     * @param string $login - admin login
-     * @param string $password - admin password	 
+     * Authorize the admin by checking login and password.
+     *
+     * @param string $login - Admin login.
+     * @param string $password - Admin password.
      */
     function authorization($login, $password)
     {
@@ -134,11 +141,12 @@ class Fwdme_Bot
     }
 
     /**
-     * Save authorization credentials
-     * @param string $login - admin login
-     * @param string $password - admin password	 
-     * @param string $cpassword - password confirmation
-     * @return string message
+     * Save admin authorization credentials.
+     *
+     * @param string $login - Admin login.
+     * @param string $password - Admin password.
+     * @param string $cpassword - Password confirmation.
+     * @return string - Result message.
      */
     function save_authorization($login, $password, $cpassword)
     {
@@ -158,8 +166,9 @@ class Fwdme_Bot
     }
 
     /**
-     * Save bot name
-     * @param string $name - Telegram bot name	 
+     * Save the bot's name.
+     *
+     * @param string $name - The name of the Telegram bot.
      */
     function save_name($name)
     {
@@ -168,8 +177,9 @@ class Fwdme_Bot
     }
 
     /**
-     * Save bot token
-     * @param string $token - Telegram bot token from @BotFather
+     * Save the bot's token.
+     *
+     * @param string $token - The Telegram bot token from @BotFather.
      */
     function save_token($token)
     {
@@ -178,8 +188,9 @@ class Fwdme_Bot
     }
 
     /**
-     * Save formatted text for message bot sent when command /start requested
-     * @param string $msg - formatted message text
+     * Save the formatted text for the message sent when the /start command is requested.
+     *
+     * @param string $msg - The formatted message text.
      */
     function save_start_msg($msg)
     {
@@ -189,9 +200,10 @@ class Fwdme_Bot
     }
 
     /**
-     * Save webhook url for Telegram API requests
-     * @param string $url
-     * @return string result message
+     * Save the webhook URL for Telegram API requests.
+     *
+     * @param string $url - The webhook URL.
+     * @return string - Result message.
      */
     function save_webhook($url)
     {
@@ -213,8 +225,9 @@ class Fwdme_Bot
     }
 
     /**
-     * Save bot admins credentials
-     * @param string $recipients - Telegram user ID by line	 	 
+     * Save the list of bot admins.
+     *
+     * @param string $recipients - Telegram user IDs, one per line.
      */
     function save_admins($recipients)
     {
@@ -222,12 +235,17 @@ class Fwdme_Bot
         $this->save_settings();
     }
 
+    /**
+     * Save the current settings to the settings file.
+     */
     function save_settings()
     {
         file_put_contents(__DIR__ . '/' . $this->settings_file, json_encode($this->settings));
     }
 
-
+    /**
+     * Handle admin panel actions.
+     */
     function admin()
     {
         if (!isset($_GET['action']) || $_GET['action'] != 'admin') return;
@@ -246,7 +264,7 @@ class Fwdme_Bot
 
         $param = isset($_GET['param']) ? $_GET['param'] : '';
 
-        // setup 
+        // Setup steps
         if ($this->settings_file == '') $param = 'setup_settings';
         elseif (!isset($this->settings['login'])) $param = 'setup_auth';
         elseif (!isset($this->settings['name'])) $param = 'setup_name';
@@ -263,9 +281,14 @@ class Fwdme_Bot
         $this->admin_footer();
     }
 
+    /**
+     * Process incoming messages from Telegram.
+     *
+     * @param array $message - The message data from Telegram.
+     */
     function process_message($message)
     {
-        // process incoming message
+        // Process incoming message
         if (isset($message)) {
             $text = isset($message['text']) ? $message['text'] : '';
             if ($text === "/start" || $text === strtolower("/start" . $this->settings['name'])) {
@@ -276,11 +299,17 @@ class Fwdme_Bot
                 $this->connect($message);
             } else {
                 if (!in_array($message['from']['id'], $this->settings['admins'])) $this->interference_message($message);
+                if (in_array($message['from']['id'], $this->settings['admins']) && isset($message['message_thread_id'])) $this->replay_in_topic($message);
                 if (in_array($message['from']['id'], $this->settings['admins']) && isset($message['reply_to_message'])) $this->replay_message($message);
             }
         }
     }
 
+    /**
+     * Process callback queries from Telegram.
+     *
+     * @param array $callback - The callback data from Telegram.
+     */
     function process_callback($callback)
     {
         if (isset($callback['data'])) {
@@ -289,12 +318,22 @@ class Fwdme_Bot
         }
     }
 
+    /**
+     * Connect a chat to the bot.
+     *
+     * @param string $chat_id - The ID of the chat to connect.
+     * @param string $callback_id - The callback query ID.
+     */
     function connect_chat($chat_id, $callback_id)
     {
         $connected = false;
         $chat_id = filter_var($chat_id, FILTER_SANITIZE_STRING);
+
+        $chat_admins = $this->get_chat_administrators($chat_id);
+
         if (isset($this->settings['chats'])) {
             if (!in_array($chat_id, $this->settings['chats'])) {
+                $this->settings['admins'] = $chat_admins;
                 $this->settings['chats'][] = $chat_id;
                 $this->save_settings();
                 $data = ['callback_query_id' => $callback_id, 'text' => 'Chat ' . $chat_id . ' connected!', 'show_alert' => false];
@@ -302,6 +341,7 @@ class Fwdme_Bot
                 $data = ['callback_query_id' => $callback_id, 'text' => 'Error, chat already connected!', 'show_alert' => false];
             }
         } else {
+            $this->settings['admins'] = $chat_admins;
             $this->settings['chats'][] = $chat_id;
             $this->save_settings();
             $data = ['callback_query_id' => $callback_id, 'text' => 'Chat ' . $chat_id . ' connected!', 'show_alert' => false];
@@ -310,9 +350,14 @@ class Fwdme_Bot
         $this->send_post('answerCallbackQuery', $data);
     }
 
+    /**
+     * Handle the /connect command from a chat.
+     *
+     * @param array $message - The message data from Telegram.
+     */
     function connect($message)
     {
-        // only admins allowed
+        // Only admins are allowed to connect chats
         if (in_array($message['from']['id'], $this->settings['admins'])) {
             $inline_keyboard[] = [['text' => "Confirm", 'callback_data' => '/connect_chat ' . $message['chat']['id']]];
             $keyboard = ["inline_keyboard" => $inline_keyboard];
@@ -329,6 +374,11 @@ class Fwdme_Bot
         }
     }
 
+    /**
+     * Handle the /id command to get the user's and chat's ID.
+     *
+     * @param array $message - The message data from Telegram.
+     */
     function get_id($message)
     {
         $msg = 'Your Telegram ID: <code>' . $message['from']['id'] . '</code>';
@@ -336,45 +386,114 @@ class Fwdme_Bot
         $this->send_post("sendMessage", ['chat_id' => $message['chat']['id'], 'text' => $msg, 'parse_mode'   => 'HTML']);
     }
 
+    /**
+     * Forward a message to the connected chats or admins.
+     *
+     * @param array $message - The message data from Telegram.
+     */
     function interference_message($message)
     {
-        // by default empty recipients
+        // By default, no recipients
         $rcps = [];
 
-        // if admins exists forward message to them
+        // If admins exist, forward the message to them
         if (isset($this->settings['admins']) && !empty($this->settings['admins'])) {
             $rcps = $this->settings['admins'];
         }
 
-        // if chats connected forward message to chats
+        // If chats are connected, forward the message to them
         if (isset($this->settings['chats']) && !empty($this->settings['chats'])) {
             $rcps = $this->settings['chats'];
         }
 
         if (!empty($rcps)) {
             foreach ($rcps as $rcp) {
-                $result = $this->send_post("forwardMessage", [
-                    'chat_id' => (int) $rcp,
-                    'from_chat_id' => $message['chat']['id'],
-                    'message_id' => $message['message_id']
-                ]);
-                if (!empty($result)) {
-                    $result = json_decode($result, true);
-                    if (isset($result['result']) && isset($result['result']['message_id'])) {
-                        $rel = [$message['chat']['id'], $message['message_id'], $rcp, $result['result']['message_id']];
-                        $this->create_rel($rel);
+                $user_topic_file = __DIR__ . '/data/' . $rcp . '_' . $message['from']['id'];
+                if (file_exists($user_topic_file)) {
+                    $topic_id = file_get_contents($user_topic_file);
+                    if ($topic_id) {
+                        $result = $this->send_post("forwardMessage", [
+                            'chat_id' => (int) $rcp,
+                            'from_chat_id' => $message['chat']['id'],
+                            'message_id' => $message['message_id'],
+                            'message_thread_id' => $topic_id
+                        ]);
+
+                        if (!empty($result)) {
+                            $result = json_decode($result, true);
+                            if (isset($result['result']) && isset($result['result']['message_id'])) {
+                                $rel = [$message['chat']['id'], $message['message_id'], $rcp, $result['result']['message_id']];
+                                $this->create_rel($rel);
+                            }
+                        }
+                        continue;
                     }
                 }
+
+                if ($this->is_forum_chat($rcp)) {
+                    $username = $message['from']['username'] ?? $message['from']['first_name'] . ' ' . $message['from']['last_name'];
+                    $topic_id = $this->create_user_topic($rcp, $username . ' (' . $message['from']['id'] . ')');
+
+                    if ($topic_id) {
+                        file_put_contents($user_topic_file, $topic_id);
+
+                        $topic_file = __DIR__ . '/data/t' . $rcp . '_' . $topic_id;
+                        file_put_contents($topic_file, $message['from']['id']);
+
+                        $result = $this->send_post("forwardMessage", [
+                            'chat_id' => (int) $rcp,
+                            'from_chat_id' => $message['chat']['id'],
+                            'message_id' => $message['message_id'],
+                            'message_thread_id' => $topic_id
+                        ]);
+
+                        if (!empty($result)) {
+                            $result = json_decode($result, true);
+                            if (isset($result['result']) && isset($result['result']['message_id'])) {
+                                $rel = [$message['chat']['id'], $message['message_id'], $rcp, $result['result']['message_id']];
+                                $this->create_rel($rel);
+                            }
+                        }
+                    }
+                } else {
+
+                    $result = $this->send_post("forwardMessage", [
+                        'chat_id' => (int) $rcp,
+                        'from_chat_id' => $message['chat']['id'],
+                        'message_id' => $message['message_id']
+                    ]);
+
+                    if (!empty($result)) {
+                        $result = json_decode($result, true);
+                        if (isset($result['result']) && isset($result['result']['message_id'])) {
+                            $rel = [$message['chat']['id'], $message['message_id'], $rcp, $result['result']['message_id']];
+                            $this->create_rel($rel);
+                        }
+                    }
+                }
+
                 sleep(self::SLEEP_TIME);
             }
         }
     }
 
+    /**
+     * Create a relationship between the original message and the forwarded message.
+     *
+     * @param array $rel - The relationship data.
+     */
     function create_rel($rel)
     {
         file_put_contents(__DIR__ . '/data/' . $rel[2] . '_' . $rel[3], $rel[0] . '_' . $rel[1]);
     }
 
+    /**
+     * Get the relationship between the original message and the forwarded message.
+     *
+     * @param int $chat_id - The chat ID.
+     * @param int $message_id - The message ID.
+     * @return array|false - The relationship data or false if not found.
+     */
     function get_rel($chat_id, $message_id)
     {
         $result = false;
@@ -389,9 +508,13 @@ class Fwdme_Bot
         return $result;
     }
 
+    /**
+     * Reply to a message in a chat.
+     *
+     * @param array $message - The message data from Telegram.
+     */
     function replay_message($message)
     {
-
         $rel = $this->get_rel($message['chat']['id'], $message['reply_to_message']['message_id']);
 
         if ($rel) {
@@ -410,6 +533,69 @@ class Fwdme_Bot
         exit();
     }
 
+    /**
+     * Reply to a message in a topic.
+     *
+     * @param array $message - The message data from Telegram.
+     */
+    function replay_in_topic($message)
+    {
+        if (!isset($message['message_thread_id'])) {
+            $this->send_post("sendMessage", [
+                'chat_id' => $message['chat']['id'],
+                'text' => '[ Error ] Topic ID not found in the message.'
+            ]);
+            return;
+        }
+
+        $message_thread_id = $message['message_thread_id'];
+
+        $topic_file = __DIR__ . '/data/t' . $message['chat']['id'] . '_' . $message_thread_id;
+
+        if (!file_exists($topic_file)) {
+            $this->send_post("sendMessage", [
+                'chat_id' => $message['chat']['id'],
+                'text' => '[ Error ] Topic not found.'
+            ]);
+            return;
+        }
+
+        $chat_id = file_get_contents($topic_file);
+
+        if (!$chat_id) {
+            $this->send_post("sendMessage", [
+                'chat_id' => $message['chat']['id'],
+                'text' => '[ Error ] Failed to read topic information.'
+            ]);
+            return;
+        }
+
+        if (isset($message['photo'])) {
+            $this->send_post("sendPhoto", [
+                'chat_id' => $chat_id,
+                'photo' => $message['photo'][0]['file_id'],
+                'caption' => $message['caption']
+            ]);
+        } elseif (isset($message['text'])) {            
+            $this->send_post("sendMessage", [
+                'chat_id' => $chat_id,
+                'text' => $message['text'],
+            ]);
+        } else {
+            $this->send_post("sendMessage", [
+                'chat_id' => $message['chat']['id'],
+                'text' => '[ Error ] Can not send reply to topic ' . $message_thread_id . ', please contact support.'
+            ]);
+        }
+
+        exit();
+    }
+
+    /**
+     * Handle the /start command.
+     *
+     * @param array $message - The message data from Telegram.
+     */
     function start($message)
     {
         $this->send_post("sendMessage", ['chat_id' => $message['chat']['id'], 'text' => $this->settings['start_msg'], 'parse_mode'   => 'HTML']);
@@ -417,10 +603,11 @@ class Fwdme_Bot
     }
 
     /**
-     * @param String $method_name - Telegram BOT API method
-     * @param array $data - method params
+     * Send a POST request to the Telegram API.
      *
-     * @return mixed|null
+     * @param string $method_name - The Telegram API method name.
+     * @param array $data - The method parameters.
+     * @return mixed|null - The API response.
      */
     function send_post($method_name, $data = [])
     {
@@ -441,16 +628,21 @@ class Fwdme_Bot
     }
 
     /**
-     * @param String $method_name - Telegram BOT API method name
+     * Build the URL for a Telegram API request.
      *
-     * @return string - build url for request
+     * @param string $method_name - The Telegram API method name.
+     * @return string - The full URL for the request.
      */
     function build_url($method_name)
     {
         return self::API_URL . $this->settings['token'] . '/' . $method_name;
     }
 
-
+    /**
+     * Display the admin panel.
+     *
+     * @param string $responce - The response message to display.
+     */
     function panel($responce = '')
     {
         $v = self::VERSION;
@@ -473,6 +665,9 @@ HTML;
         }
     }
 
+    /**
+     * Display the setup authorization form.
+     */
     function setup_auth()
     {
         echo <<<HTML
@@ -486,21 +681,24 @@ HTML;
 HTML;
     }
 
+    /**
+     * Display the setup settings form.
+     */
     function setup_settings()
     {
-        // default state
+        // Default state
         $state = 0;
         if (!file_exists($this->settings_file)) {
-            $state = 1; // setup
+            $state = 1; // Setup
             $random_md5 = md5(time());
             file_put_contents($random_md5 . '.json', '');
             if (!file_exists($random_md5 . '.json')) {
-                $state = 2; // setup error
+                $state = 2; // Setup error
                 echo <<<HTML
 <p style="color: red;">Config not found! Create empty writeable(!) file with random name and .json extention in script directory.<br>For example <i><b>{$random_md5}.json</b></i></p>
 HTML;
             } else {
-                $state = 3; // setup success
+                $state = 3; // Setup success
                 echo '<p>Settings file created: <b>' . $random_md5 . '.json' . '</b></p>';
             }
         } else {
@@ -511,12 +709,12 @@ HTML;
         if (!file_exists($data_dir . '/')) {
             mkdir($data_dir, 0777);
             if (!file_exists($data_dir . '/')) {
-                $state = 2; // setup error
+                $state = 2; // Setup error
                 echo <<<HTML
 <p style="color: red;">Directory {$data_dir} not found!<br>Create directory with name <b>data</b> and 777 permissions in script directory.</p>
 HTML;
             } else {
-                $state = 3; // setup success
+                $state = 3; // Setup success
                 echo '<p>Data directory created: <b>OK</b></p>';
             }
         } else {
@@ -526,7 +724,9 @@ HTML;
         if ($state == 3) echo '<p><a href="">Click here</a> to continue.</p>';
     }
 
-
+    /**
+     * Display the setup bot name form.
+     */
     function setup_name()
     {
         $name = isset($this->settings['name']) ? $this->settings['name'] : '';
@@ -539,6 +739,9 @@ HTML;
 HTML;
     }
 
+    /**
+     * Display the setup bot token form.
+     */
     function setup_token()
     {
         $token = isset($this->settings['token']) ? $this->settings['token'] : '';
@@ -551,6 +754,9 @@ HTML;
 HTML;
     }
 
+    /**
+     * Display the setup webhook form.
+     */
     function setup_webhook()
     {
         $webhook = isset($this->settings['webhook']) ? $this->settings['webhook'] : '';
@@ -563,6 +769,9 @@ HTML;
 HTML;
     }
 
+    /**
+     * Display the setup start message form.
+     */
     function setup_start()
     {
         $start = isset($this->settings['start_msg']) ? $this->settings['start_msg'] : '';
@@ -575,6 +784,9 @@ HTML;
 HTML;
     }
 
+    /**
+     * Display the setup admins form.
+     */
     function setup_admins()
     {
         $recipients = isset($this->settings['admins']) ? implode(PHP_EOL, $this->settings['admins']) : '';
@@ -587,9 +799,13 @@ HTML;
 HTML;
     }
 
+    /**
+     * Display the setup chats form.
+     */
     function setup_chats()
     {
-        $html = '<p>To connect chat add your bot to the chat and use command /connect@botname</p>';
+        
+        $html = '<p>To connect chat add your bot to the chat and use command /connect' . $this->settings['name'] . '</p>';
         if (!empty($this->settings['chats'])) {
             $html .= '<form method="POST">';
             foreach ($this->settings['chats'] as $n => $chat) {
@@ -604,6 +820,9 @@ HTML;
 HTML;
     }
 
+    /**
+     * Display the help section.
+     */
     function help()
     {
         echo <<<HTML
@@ -611,6 +830,9 @@ HTML;
 HTML;
     }
 
+    /**
+     * Display the admin panel header.
+     */
     function admin_header()
     {
         $v = self::VERSION;
@@ -638,6 +860,9 @@ HTML;
 HTML;
     }
 
+    /**
+     * Display the admin panel footer.
+     */
     function admin_footer()
     {
         echo <<<HTML
@@ -646,14 +871,22 @@ HTML;
 HTML;
     }
 
+    /**
+     * Log messages to a file.
+     *
+     * @param string $message - The message to log.
+     * @param string $log_file - The log file name.
+     */
     function logger($message, $log_file = 'main.log')
     {
         file_put_contents($log_file, date("Y-m-d H:i:s", time()) . ' ' . PHP_EOL . $message . PHP_EOL . '----------' . PHP_EOL, FILE_APPEND);
     }
 
+    /**
+     * Display the login form.
+     */
     function login()
     {
-
         echo <<<HTML
 <html>
 <head></head>
@@ -666,6 +899,101 @@ HTML;
 </body>
 </html>
 HTML;
+    }
+
+    /**
+     * Check if a chat is a forum chat.
+     *
+     * @param int $chat_id - The chat ID.
+     * @return bool - True if the chat is a forum, false otherwise.
+     */
+    function is_forum_chat($chat_id)
+    {
+        $chat_info = $this->get_chat_info($chat_id);
+        if ($chat_info && isset($chat_info['is_forum'])) {
+            return $chat_info['is_forum'];
+        }
+        return false;
+    }
+
+    /**
+     * Get information about a chat.
+     *
+     * @param int $chat_id - The chat ID.
+     * @return array|false - The chat information or false if not found.
+     */
+    function get_chat_info($chat_id)
+    {
+        $result = $this->send_post('getChat', [
+            'chat_id' => $chat_id
+        ]);
+
+        if ($result) {
+            $result = json_decode($result, true);
+            if (isset($result['ok']) && $result['ok'] == true) {
+                return $result['result'];
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Create a user topic in a forum chat.
+     *
+     * @param int $chat_id - The chat ID.
+     * @param string $topic_name - The name of the topic.
+     * @return int|false - The topic ID or false if creation failed.
+     */
+    function create_user_topic($chat_id, $topic_name)
+    {
+        $topic_name = $topic_name;
+        $result = $this->send_post('createForumTopic', [
+            'chat_id' => $chat_id,
+            'name' => $topic_name
+        ]);
+
+        if ($result) {
+            $result = json_decode($result, true);
+            if (isset($result['ok']) && $result['ok'] == true) {
+                return $result['result']['message_thread_id']; // Return the topic ID
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Get the list of chat administrators.
+     *
+     * @param int $chat_id - The chat ID.
+     * @return array - The list of administrator IDs.
+     */
+    function get_chat_administrators($chat_id)
+    {
+        // Send a request to the API to get the list of administrators
+        $result = $this->send_post('getChatAdministrators', [
+            'chat_id' => $chat_id
+        ]);
+
+        // Array to store administrator IDs
+        $admin_ids = [];
+
+        if ($result) {
+            $result = json_decode($result, true);
+            if (isset($result['ok']) && $result['ok'] == true) {
+                // Loop through the list of administrators and extract their IDs
+                foreach ($result['result'] as $admin) {
+                    if (isset($admin['user']['id'])) {
+                        $admin_ids[] = $admin['user']['id'];
+                    }
+                }
+            } else {
+                $this->logger("Error getting administrators: " . json_encode($result));
+            }
+        } else {
+            $this->logger("API request error: getChatAdministrators");
+        }
+
+        return $admin_ids;
     }
 }
 
